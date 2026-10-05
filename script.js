@@ -26,11 +26,24 @@ document.addEventListener('DOMContentLoaded', () => {
     function logout() { currentUser = null; if(ws) ws.close(); $('app').style.display = 'none'; $('connectScreen').style.display = 'flex'; }
 
     function connectESP() {
-        const ip = $('ipInput').value.trim();
-        if (!ip) return $('connErr').textContent = 'IP ADDRESS REQUIRED.';
-        localStorage.setItem('esp_ip', ip);
-        let wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-        ws = new WebSocket(wsProtocol + ip + ':81');
+        const inputVal = $('ipInput').value.trim();
+        if (!inputVal) return $('connErr').textContent = 'IP ADDRESS OR TUNNEL URL REQUIRED.';
+        localStorage.setItem('esp_ip', inputVal);
+        
+        let wsUrl = '';
+        // Check if the user typed a secure tunnel URL (starts with http)
+        if (inputVal.startsWith('http')) {
+            // It's a tunnel URL (e.g., https://abc-xyz.localhost.run)
+            let url = new URL(inputVal);
+            // Convert https to wss (secure websocket). Do not add :81, the tunnel handles it.
+            wsUrl = 'wss://' + url.hostname; 
+        } else {
+            // It's a local IP (e.g., 192.168.137.129)
+            let wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+            wsUrl = wsProtocol + inputVal + ':81'; // Add port 81 for local IP
+        }
+        
+        ws = new WebSocket(wsUrl);
         
         ws.onopen = () => {
             $('connectScreen').style.display = 'none'; $('app').style.display = 'flex';
