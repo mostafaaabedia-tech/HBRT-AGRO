@@ -1,0 +1,23 @@
+{
+  "name": "HBRT Smart Greenhouse",
+  "short_name": "HBRT",
+  "description": "Precision AgTech Control System by Herat Boys Robotic Team",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#0b1410",
+  "theme_color": "#39FF14",
+  "icons": [
+    {
+      "src": "https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?q=80&w=192&auto=format&fit=crop",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?q=80&w=512&auto=format&fit=crop",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
