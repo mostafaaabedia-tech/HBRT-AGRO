@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>HBRT AGRO | Precision Greenhouse Control</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;500;700&family=Roboto+Condensed:wght@400;700&family=Space+Grotesk:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+</head>
+<body>
+
+    <!-- Login Screen -->
+    <div id="loginScreen" class="fullscreen-overlay">
+        <div class="auth-box">
+            <h2>HBRT<span class="accent">.</span> ACCESS</h2>
+            <p>Afghan-Turk Maarif Schools Herat Boys High School<br>HBRT (Herat Boys Robotic Team)</p>
+            <input type="text" id="loginUser" placeholder="Username">
+            <input type="password" id="loginPass" placeholder="Password">
+            <button id="loginBtn" class="btn-primary">AUTHENTICATE</button>
+            <div id="loginErr" class="error-text"></div>
+            <p class="hint">Admin: admin/admin | Guest: guest/guest</p>
+        </div>
+    </div>
+
+    <!-- ESP32 Connection Screen -->
+    <div id="connectScreen" class="fullscreen-overlay" style="display: none;">
+        <div class="auth-box">
+            <h2>NETWORK <span class="accent">HANDSHAKE</span></h2>
+            <p>Enter the ESP32 Local IP Address</p>
+            <input type="text" id="ipInput" placeholder="e.g. 192.168.1.50" inputmode="decimal">
+            <button id="connectBtn" class="btn-primary">ESTABLISH LINK</button>
+            <div id="connErr" class="error-text"></div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="app" class="app-container" style="display: none;">
+        <div class="marquee">
+            <div class="marquee-inner" id="marqueeData">
+                <span>SYSTEM INITIALIZING... • WAITING FOR TELEMETRY • HBRT AGRO TECH • PRECISION CONTROL • </span>
+                <span>SYSTEM INITIALIZING... • WAITING FOR TELEMETRY • HBRT AGRO TECH • PRECISION CONTROL • </span>
+            </div>
+        </div>
+
+        <div class="layout-wrapper">
+            <aside class="sidebar">
+                <div class="brand">
+                    <h1>HBRT<span class="accent">.</span></h1>
+                    <p>AGRO SYSTEMS</p>
+                </div>
+                <nav class="nav-menu">
+                    <button class="nav-btn active" data-view="dashboard">◈ OVERVIEW</button>
+                    <button class="nav-btn" data-view="vision">🦅 VISION</button>
+                    <button class="nav-btn" data-view="automation">⚡ AUTOMATION</button>
+                    <button class="nav-btn" data-view="data">▦ DATA LOGS</button>
+                    <button class="nav-btn" data-view="ai">🤖 AI ASSISTANT</button>
+                    <button class="nav-btn" data-view="settings">⚙ CONFIG</button>
+                    <button class="nav-btn logout-btn" id="logoutBtn">◈ DISCONNECT</button>
+                </nav>
+                <div class="sidebar-footer">
+                    <strong>Made by:</strong><br>
+                    Mostafa Mesbah Aabedi<br>
+                    Sebghatullah Haidari<br>
+                    Milad Ahmadi
+                </div>
+            </aside>
+
+            <main class="main-content">
+                <!-- Dashboard View -->
+                <section class="view active" id="view-dashboard">
+                    <header class="view-header">
+                        <div>
+                            <h1 id="systemStatus">SYSTEM <span class="accent">NOMINAL</span></h1>
+                            <div class="sub">REAL-TIME ENVIRONMENTAL TELEMETRY</div>
+                        </div>
+                        <div class="header-actions">
+                            <div class="resource-tracker">
+                                <div class="res-item"><span class="res-val" id="waterUsed">0.0</span><span class="res-label">L USED</span></div>
+                                <div class="res-item"><span class="res-val" id="fanHours">0.0</span><span class="res-label">HRS FAN</span></div>
+                            </div>
+                            <div class="alert-bell" id="alertBell">🔔<span class="alert-count" id="alertCount" style="display:none;">0</span></div>
+                            <div id="modeBadge" class="badge">AUTO MODE</div>
+                        </div>
+                    </header>
+                    <div id="alertBanner" class="alert-banner" style="display:none;"></div>
+
+                    <!-- 5 Hardcoded Circular Gauges -->
+                    <div class="stat-grid">
+                        <div class="stat-card" id="card_temp">
+                            <div class="ring-wrapper">
+                                <svg class="progress-ring" width="120" height="120"><circle class="ring-bg" cx="60" cy="60" r="54"></circle><circle class="ring-fill" id="ring_temp" cx="60" cy="60" r="54" style="stroke: var(--orange); stroke-dasharray: 339; stroke-dashoffset: 339;"></circle></svg>
+                                <div class="ring-val"><span id="temp">--</span><span>°C</span></div>
+                            </div>
+                            <div class="label">AIR TEMP</div>
+                        </div>
+                        <div class="stat-card" id="card_hum">
+                            <div class="ring-wrapper">
+                                <svg class="progress-ring" width="120" height="120"><circle class="ring-bg" cx="60" cy="60" r="54"></circle><circle class="ring-fill" id="ring_hum" cx="60" cy="60" r="54" style="stroke: var(--neon); stroke-dasharray: 339; stroke-dashoffset: 339;"></circle></svg>
+                                <div class="ring-val"><span id="hum">--</span><span>%</span></div>
+                            </div>
+                            <div class="label">HUMIDITY</div>
+                        </div>
+                        <div class="stat-card" id="card_soil">
+                            <div class="ring-wrapper">
+                                <svg class="progress-ring" width="120" height="120"><circle class="ring-bg" cx="60" cy="60" r="54"></circle><circle class="ring-fill" id="ring_soil" cx="60" cy="60" r="54" style="stroke: var(--forest); stroke-dasharray: 339; stroke-dashoffset: 339;"></circle></svg>
+                                <div class="ring-val"><span id="soil">--</span><span>%</span></div>
+                            </div>
+                            <div class="label">SOIL MOISTURE</div>
+                        </div>
+                        <div class="stat-card" id="card_soiltemp">
+                            <div class="ring-wrapper">
+                                <svg class="progress-ring" width="120" height="120"><circle class="ring-bg" cx="60" cy="60" r="54"></circle><circle class="ring-fill" id="ring_soiltemp" cx="60" cy="60" r="54" style="stroke: #FFD700; stroke-dasharray: 339; stroke-dashoffset: 339;"></circle></svg>
+                                <div class="ring-val"><span id="soiltemp">--</span><span>°C</span></div>
+                            </div>
+                            <div class="label">SOIL TEMP</div>
+                        </div>
+                        <div class="stat-card" id="card_water">
+                            <div class="ring-wrapper">
+                                <svg class="progress-ring" width="120" height="120"><circle class="ring-bg" cx="60" cy="60" r="54"></circle><circle class="ring-fill" id="ring_water" cx="60" cy="60" r="54" style="stroke: #00aaff; stroke-dasharray: 339; stroke-dashoffset: 339;"></circle></svg>
+                                <div class="ring-val"><span id="water">--</span><span>%</span></div>
+                            </div>
+                            <div class="label">WATER TANK</div>
+                        </div>
+                    </div>
+
+                    <div class="chart-grid">
+                        <div class="chart-box"><h3>CLIMATE / TEMP & HUM</h3><canvas id="chartTH"></canvas></div>
+                        <div class="chart-box"><h3>HYDRATION / SOIL & TANK</h3><canvas id="chartSW"></canvas></div>
+                    </div>
+                </section>
+
+                <!-- Vision View -->
+                <section class="view" id="view-vision">
+                    <header class="view-header">
+                        <div>
+                            <h2>LIVE <span class="accent">VISION</span></h2>
+                            <div class="sub">REAL-TIME PLANT MONITORING</div>
+                        </div>
+                    </header>
+                    <div class="vision-container">
+                        <img id="cameraStream" src="" alt="Connecting to ESP32-CAM...">
+                        <div class="vision-overlay" id="camOverlay">CAMERA OFFLINE - SET IP IN CONFIG</div>
+                    </div>
+                </section>
+
+                <!-- Automation View -->
+                <section class="view" id="view-automation">
+                    <header class="view-header">
+                        <div>
+                            <h2>RULES <span class="accent">ENGINE</span></h2>
+                            <div class="sub">NO-CODE VISUAL LOGIC BUILDER</div>
+                        </div>
+                    </header>
+                    <div class="form-card">
+                        <h3>CREATE NEW RULE</h3>
+                        <div class="rule-builder">
+                            <select id="ruleParam" class="form-input"><option value="temperature">Air Temp</option><option value="soilTemp">Soil Temp</option><option value="humidity">Humidity</option><option value="soil">Soil Moisture</option><option value="water">Water Tank</option></select>
+                            <select id="ruleOperator" class="form-input"><option value=">">IS GREATER THAN (>)</option><option value="<">IS LESS THAN (<)</option></select>
+                            <input type="number" id="ruleValue" class="form-input" placeholder="VALUE (e.g. 35)">
+                            <span class="rule-text">THEN</span>
+                            <select id="ruleAction" class="form-input"><option value="fan">Turn ON Fan</option><option value="pump">Turn ON Pump</option><option value="lights">Turn ON Lights</option><option value="heater">Turn ON Heater</option><option value="servo">Open Vent</option></select>
+                            <button id="addRuleBtn" class="btn-primary">DEPLOY RULE</button>
+                        </div>
+                    </div>
+                    <div class="form-card"><h3>ACTIVE RULES</h3><div id="rulesList"></div></div>
+                </section>
+
+                <!-- Data View -->
+                <section class="view" id="view-data">
+                    <header class="view-header">
+                        <div>
+                            <h2>DATA <span class="accent">ARCHIVE</span></h2>
+                            <div class="sub">HISTORICAL LOG EXPORT & ANALYSIS</div>
+                        </div>
+                        <div class="export-actions">
+                            <button id="exportCsvBtn" class="btn-secondary">⬇ EXPORT CSV</button>
+                            <button id="exportPdfBtn" class="btn-primary">⬇ EXPORT PDF REPORT</button>
+                        </div>
+                    </header>
+                    <div class="chart-box" style="height: 300px; margin-bottom: 16px;">
+                        <h3>FULL HISTORICAL TREND</h3>
+                        <canvas id="chartHistory"></canvas>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="excel-table">
+                            <thead><tr><th>TIMESTAMP</th><th>AIR TEMP</th><th>HUM</th><th>SOIL</th><th>SOIL TEMP</th><th>WATER</th><th>FAN</th><th>PUMP</th><th>LIGHTS</th><th>HEATER</th><th>VENT</th></tr></thead>
+                            <tbody id="tableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- AI Assistant View -->
+                <section class="view" id="view-ai">
+                    <header class="view-header">
+                        <div>
+                            <h2>AI <span class="accent">ASSISTANT</span></h2>
+                            <div class="sub">LOCAL OLLAMA DIAGNOSTIC SUITE</div>
+                        </div>
+                    </header>
+                    <div class="ai-chat-container">
+                        <div class="ai-chat-history" id="aiOut">STANDBY... AWAITING QUERY.</div>
+                        <div class="ai-input-row">
+                            <input type="text" id="aiIn" class="ai-in-large" placeholder="Ask the AI about the greenhouse status...">
+                            <button id="askAiBtn" class="btn-primary">EXECUTE</button>
+                            <button id="predictHarvestBtn" class="btn-secondary">🌱 PREDICT HARVEST</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Settings View -->
+                <section class="view" id="view-settings">
+                    <header class="view-header">
+                        <div>
+                            <h2>SYSTEM <span class="accent">CONFIG</span></h2>
+                            <div class="sub">AI & VISION INTEGRATION</div>
+                        </div>
+                    </header>
+                    <div class="form-card">
+                        <h3>🤖 LOCAL AI CORE (OLLAMA)</h3>
+                        <div class="form-group"><label>API Endpoint URL</label><input type="text" id="lmUrl" class="form-input" placeholder="http://192.168.1.100:11434/v1/chat/completions"></div>
+                        <button id="saveSettingsBtn" class="btn-primary">SAVE CONFIG</button>
+                    </div>
+                    <div class="form-card">
+                        <h3>🦅 ESP32-CAM VISION SYSTEM</h3>
+                        <div class="form-group"><label>Camera Stream URL</label><input type="text" id="camUrl" class="form-input" placeholder="http://192.168.1.60:81/stream"></div>
+                        <button id="saveCamBtn" class="btn-primary">SAVE CAMERA</button>
+                    </div>
+                    <div class="form-card" id="userMgmt" style="display: none;">
+                        <h3>👥 ACCESS CONTROL (ADMIN)</h3>
+                        <div class="form-group">
+                            <label>Register New User</label>
+                            <input type="text" id="newUser" class="form-input" placeholder="Username"><input type="password" id="newPass" class="form-input" placeholder="Password">
+                            <select id="newRole" class="form-input"><option value="user">Standard User</option><option value="admin">Administrator</option></select>
+                            <div class="checkbox-grid"><label><input type="checkbox" id="pTemp" checked> Temp</label><label><input type="checkbox" id="pHum" checked> Humidity</label><label><input type="checkbox" id="pSoil" checked> Soil</label><label><input type="checkbox" id="pWater" checked> Water</label></div>
+                            <button id="addUserBtn" class="btn-primary">CREATE USER</button>
+                        </div>
+                        <hr><table class="excel-table"><thead><tr><th>USER</th><th>ROLE</th><th>PERMS</th><th>ACTION</th></tr></thead><tbody id="userTableBody"></tbody></table>
+                    </div>
+                </section>
+            </main>
+
+            <aside class="right-panel">
+                <div class="panel-section">
+                    <h3>MANUAL OVERRIDES</h3>
+                    <button class="ctrl-btn" id="modeBtn">SWITCH TO MANUAL</button>
+                    <button class="ctrl-btn" id="fanBtn" data-device="fan">FAN: OFF</button>
+                    <button class="ctrl-btn" id="ventBtn" data-device="servo">VENT: CLOSED</button>
+                    <button class="ctrl-btn" id="pumpBtn" data-device="pump">PUMP: OFF</button>
+                    <button class="ctrl-btn" id="lightsBtn" data-device="lights">LIGHTS: OFF</button>
+                    <button class="ctrl-btn" id="heaterBtn" data-device="heater">HEATER: OFF</button>
+                </div>
+            </aside>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
