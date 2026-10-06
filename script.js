@@ -7,10 +7,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastFanState = false, fanStartTime = 0, totalFanHours = 0;
     let activeAlerts = 0;
 
-    // --- PWA Service Worker ---
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(err => console.log(err));
 
-    // --- Auth & RBAC ---
     function seedUsers() {
         if (!localStorage.getItem('abrt_users')) {
             localStorage.setItem('abrt_users', JSON.stringify([
@@ -27,23 +25,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function logout() { currentUser = null; if(ws) ws.close(); $('app').style.display = 'none'; $('connectScreen').style.display = 'flex'; }
 
-    // --- WebSocket Integration (Supports Local IP & Cloudflare Tunnels) ---
+    // --- FIXED WebSocket Integration ---
     function connectESP() {
         const inputVal = $('ipInput').value.trim();
         if (!inputVal) return $('connErr').textContent = 'IP ADDRESS OR TUNNEL URL REQUIRED.';
         localStorage.setItem('esp_ip', inputVal);
         
         let wsUrl = '';
-        // Check if the user typed a secure tunnel URL (starts with http)
+        // Check if the user typed a secure tunnel URL
         if (inputVal.startsWith('http')) {
             // It's a tunnel URL (e.g., https://abc-xyz.trycloudflare.com)
             let url = new URL(inputVal);
-            // Convert https to wss (secure websocket). Do not add :81, the tunnel handles it.
             wsUrl = 'wss://' + url.hostname; 
         } else {
-            // It's a local IP (e.g., 192.168.137.129) - ONLY works if phone is on same WiFi
-            let wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-            wsUrl = wsProtocol + inputVal + ':81'; 
+            // FIX: It's a local IP. FORCE ws:// (insecure) because ESP32 doesn't support wss://
+            wsUrl = 'ws://' + inputVal + ':81'; 
         }
         
         ws = new WebSocket(wsUrl);
@@ -63,7 +59,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function sendCmd(payload) { if(ws && ws.readyState === 1) ws.send(JSON.stringify(payload)); }
 
-    // --- Alerts ---
     function checkAlerts(d) {
         let alerts = [];
         if (d.water < 10) alerts.push("WATER TANK CRITICAL");
@@ -77,7 +72,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Resource Tracker ---
     function trackResources(d) {
         if (d.pump && !lastPumpState) pumpStartTime = Date.now();
         if (!d.pump && lastPumpState) totalWaterUsed += ((Date.now() - pumpStartTime) / 60000) * 1.5;
@@ -88,7 +82,6 @@ document.addEventListener('DOMContentLoaded', () => {
         $('waterUsed').textContent = totalWaterUsed.toFixed(1); $('fanHours').textContent = totalFanHours.toFixed(2);
     }
 
-    // --- UI & RBAC (Circular Rings) ---
     function initRoleUI() {
         if (currentUser.role === 'admin') { $('userMgmt').style.display = 'block'; renderUserTable(); } else $('userMgmt').style.display = 'none';
         $('card_temp').style.display = currentUser.perms.temp ? 'flex' : 'none';
@@ -128,7 +121,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCharts(d);
     }
 
-    // --- Automation Rules ---
     function addRule() {
         const rules = JSON.parse(localStorage.getItem('abrt_rules') || '[]');
         rules.push({ param: $('ruleParam').value, op: $('ruleOperator').value, val: $('ruleValue').value, action: $('ruleAction').value });
@@ -143,7 +135,6 @@ document.addEventListener('DOMContentLoaded', () => {
         $('rulesList').innerHTML = rules.map((r, i) => `<div class="rule-item"><div class="logic">IF ${r.param.toUpperCase()} ${r.op} ${r.val} THEN ON ${r.action.toUpperCase()}</div><button class="delete-rule" onclick="deleteRule(${i})">DELETE</button></div>`).join('');
     }
 
-    // --- View Switcher ---
     function switchView(name) {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         $('view-' + name).classList.add('active');
@@ -160,7 +151,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Data, CSV, & PDF ---
     function renderTable() {
         $('tableBody').innerHTML = allData.slice().reverse().map(r => `<tr><td>${r.time}</td><td>${r.temperature.toFixed(1)}</td><td>${r.humidity.toFixed(1)}</td><td>${r.soil}</td><td>${r.soilTemp.toFixed(1)}</td><td>${r.water}</td><td>${r.fan ? 'ON' : 'OFF'}</td><td>${r.pump ? 'ON' : 'OFF'}</td><td>${r.lights ? 'ON' : 'OFF'}</td><td>${r.heater ? 'ON' : 'OFF'}</td><td>${r.servo ? 'OPEN' : 'CLOSED'}</td></tr>`).join('');
         updateHistoryChart();
@@ -188,7 +178,6 @@ document.addEventListener('DOMContentLoaded', () => {
         doc.save("HBRT_Greenhouse_Report.pdf");
     }
 
-    // --- Chart.js ---
     function makeChart(ctx, datasets) {
         return new Chart(ctx, { type: 'line', data: { labels: [], datasets }, options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { labels: { color: '#E0E0E0', font: { family: 'Space Grotesk', size: 12 } } } }, scales: { x: { ticks: { color: '#7A9080', maxTicksLimit: 6 }, grid: { color: 'rgba(46, 139, 87, 0.1)' } }, y: { ticks: { color: '#7A9080' }, grid: { color: 'rgba(46, 139, 87, 0.1)' } } } } });
     }
@@ -211,7 +200,6 @@ document.addEventListener('DOMContentLoaded', () => {
         charts.hist.update();
     }
 
-    // --- Settings (AI & Camera) ---
     function saveSettings() { localStorage.setItem('lm_url', $('lmUrl').value); }
     function saveCamSettings() { localStorage.setItem('cam_url', $('camUrl').value); alert("CAMERA IP SAVED!"); }
     function loadSettings() { 
@@ -219,7 +207,6 @@ document.addEventListener('DOMContentLoaded', () => {
         $('camUrl').value = localStorage.getItem('cam_url') || '';
     }
 
-    // --- AI (Ollama) ---
     async function askAI() {
         const url = $('lmUrl').value || 'http://localhost:11434/v1/chat/completions';
         const t = currentUser.perms.temp && $('temp') ? $('temp').textContent : "Hidden";
@@ -249,7 +236,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) { $('aiOut').textContent = "ERROR: AI CORE UNREACHABLE AT " + url; }
     }
 
-    // --- User Management ---
     function addUser() {
         const users = JSON.parse(localStorage.getItem('abrt_users'));
         users.push({ user: $('newUser').value, pass: $('newPass').value, role: $('newRole').value, perms: { temp: $('pTemp').checked, hum: $('pHum').checked, soil: $('pSoil').checked, water: $('pWater').checked } });
@@ -265,7 +251,6 @@ document.addEventListener('DOMContentLoaded', () => {
         $('userTableBody').innerHTML = users.map(u => `<tr><td>${u.user}</td><td>${u.role}</td><td>T:${u.perms.temp?1:0} H:${u.perms.hum?1:0} S:${u.perms.soil?1:0} W:${u.perms.water?1:0}</td><td>${u.user !== 'admin' ? `<button class="btn-primary" style="padding:4px 10px; background:var(--danger); color:#fff; border-radius:6px;" onclick="deleteUser('${u.user}')">DELETE</button>` : 'PROTECTED'}</td></tr>`).join('');
     }
 
-    // --- Event Listeners ---
     $('loginBtn').addEventListener('click', login);
     $('connectBtn').addEventListener('click', connectESP);
     $('logoutBtn').addEventListener('click', logout);
@@ -289,7 +274,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.deleteUser = deleteUser; window.deleteRule = deleteRule;
 
-    // --- Init ---
     seedUsers();
     const savedIp = localStorage.getItem('esp_ip'); if (savedIp) $('ipInput').value = savedIp;
 });
