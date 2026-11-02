@@ -160,7 +160,9 @@ function apply(type, path, data) {
   if (s && s.t && s.t !== S.lastT) {
     S.lastT = s.t;
     S.at = Math.min(Date.now(), s.t - S.skew);
-    S.pending = {};
+    // what you just tapped stays until the board confirms it (or 8 s pass), so switches never flick back
+    const stale = Date.now() - (S.pendT || 0) > 8000;
+    for (const k of Object.keys(S.pending)) if (stale || (k === "mode" ? s.mode : s[k]) === S.pending[k]) delete S.pending[k];
     S.spark.push({ T: s.temperature, H: s.humidity, S: s.soil, W: s.water });
     if (S.spark.length > 60) S.spark.shift();
     if (s.name && s.name !== S.cur.name) { S.cur.name = s.name; saveList(); }
@@ -252,6 +254,10 @@ function renderTop() {
   else if (S.link === "reconnecting") msg = t("banner_reconnecting");
   else if (S.link === "online" && S.at && !up) msg = t("banner_board_down", ago(Date.now() - S.at));
   else if (S.ro) { msg = t("view_only_note"); ro = true; }
+  else {
+    const st = S.live.s, rr = st?.hp?.rr;   // the board restarted a moment ago
+    if (st && st.uptime > 0 && st.uptime < 180) msg = rr === 9 ? t("rst_brown") : [4, 5, 6, 7].includes(rr) ? t("rst_crash") : "";
+  }
   b.textContent = msg;
   b.className = "banner" + (msg ? " show" : "") + (ro ? " ro" : "");
 }
@@ -594,7 +600,7 @@ function renderControl() {
       </div>`;
     el.querySelectorAll("#cModes button").forEach(b => b.onclick = async () => {
       if (!live()) return;
-      S.pending.mode = b.dataset.m; renderControl();
+      S.pending.mode = b.dataset.m; S.pendT = Date.now(); renderControl();
       if (await send({ device: "mode", value: b.dataset.m })) toast(t("mode_set", modeName(b.dataset.m)));
     });
     setupHold();
@@ -673,7 +679,7 @@ function devTap(d) {
   }
   const v = !(S.pending[d] ?? s[d]);
   if ((S.pending.mode || s.mode) === "manual") {
-    S.pending[d] = v; renderControl();
+    S.pending[d] = v; S.pendT = Date.now(); renderControl();
     send({ device: d, value: v, mins: 0 });
     return;
   }
@@ -692,7 +698,7 @@ function openDurSheet(d, v) {
   const label = () => { const o = opts.find(q => q[0] === pick); $("durGo").textContent = pick < 0 ? t(v ? "turn_on" : "turn_off") : t(v ? "turn_on_for" : "turn_off_for", t(o[1])); };
   label();
   $("sheetBox").querySelectorAll("[data-m]").forEach(b => b.onclick = () => { pick = +b.dataset.m; $("sheetBox").querySelectorAll("[data-m]").forEach(q => q.setAttribute("aria-pressed", q === b)); label(); });
-  $("durGo").onclick = () => { sheet(null); S.pending[d] = v; renderControl(); send({ device: d, value: v, mins: pick }); };
+  $("durGo").onclick = () => { sheet(null); S.pending[d] = v; S.pendT = Date.now(); renderControl(); send({ device: d, value: v, mins: pick }); };
   $("durCancel").onclick = () => sheet(null);
 }
 function openWaterSheet() {
@@ -706,7 +712,7 @@ function openWaterSheet() {
 async function water(sec) { if (await send({ device: "water", value: sec })) toast(t("watering_for", sec)); }
 function allOff() {
   confirmBox(t("all_off_q"), t("all_off_body"), t("turn_off"), async () => {
-    DEV.forEach(x => S.pending[x.d] = false); S.pending.mode = "manual"; renderControl();
+    DEV.forEach(x => S.pending[x.d] = false); S.pending.mode = "manual"; S.pendT = Date.now(); renderControl();
     if (await send({ device: "alloff" })) toast(t("all_off_done"));
   }, true);
 }
