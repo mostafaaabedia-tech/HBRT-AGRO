@@ -666,7 +666,7 @@ function renderPlan() {
 function devTap(d) {
   const s = S.live.s;
   if (!s || !live()) return;
-  if (d === "pump") {
+  if (d === "pump" && (S.pending.mode || s.mode) !== "manual") {
     if (s.pump || s.watering > 0) { send({ device: "stopwater" }); return; }
     openWaterSheet();
     return;
