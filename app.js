@@ -635,10 +635,10 @@ function renderControl() {
   // water
   if (s) {
     $("cTank").textContent = `${t("m_tank")} ${fmt(s.water)}%`;
-    const blocked = s.water <= l.waterMin ? t("tank_block") : s.pumpLock ? t("pump_rest") : "";
+    const blocked = s.water <= l.waterMin ? t("tank_warn") : "";   // only a warning: what you start always runs
     const busy = s.watering > 0;
     const hb = $("hold");
-    hb.disabled = !on || (!!blocked && !busy);
+    hb.disabled = !on;
     hb.classList.toggle("busy", busy);
     if (!holdState.down) {
       $("holdVal").textContent = busy ? t("sec_short", s.watering) : t("sec_short", 10);
@@ -646,7 +646,7 @@ function renderControl() {
       $("holdArc").style.strokeDashoffset = busy ? (552.9 * (1 - s.watering / Math.max(1, l.pumpMax))).toFixed(1) : 552.9;
     }
     $("cHoldHint").textContent = blocked || t("hold_hint", l.pumpMax);
-    put($("cQuick"), [5, 10, 20, 30, 60].filter(x => x <= l.pumpMax).map(x => `<button class="chip" data-s="${x}" ${on && !blocked ? "" : "disabled"}>${t("sec_short", x)}</button>`).join(""),
+    put($("cQuick"), [5, 10, 20, 30, 60].filter(x => x <= l.pumpMax).map(x => `<button class="chip" data-s="${x}" ${on ? "" : "disabled"}>${t("sec_short", x)}</button>`).join(""),
       el => el.querySelectorAll("[data-s]").forEach(b => b.onclick = () => water(+b.dataset.s)));
   }
   renderPlan();

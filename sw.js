@@ -1,5 +1,5 @@
 // Network first, so a new version shows up right away; the cached copy only opens the app offline.
-const CACHE = "hbrt-v8";
+const CACHE = "hbrt-v9";
 const SHELL = ["./", "index.html", "app.css", "app.js", "i18n.js", "manifest.json", "icon.svg"];
 self.addEventListener("install", e => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); });
 self.addEventListener("activate", e => e.waitUntil(
